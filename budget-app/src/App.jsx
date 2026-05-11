@@ -9,7 +9,7 @@ import TransactionForm from './components/TransactionForm'
 const NAV = [
   { id: 'dashboard',    label: 'Dashboard',    icon: '📊' },
   { id: 'transactions', label: 'Transactions', icon: '📋' },
-  { id: 'goals',        label: 'Budget Goals', icon: '🎯' },
+  { id: 'goals',        label: 'Goals',        icon: '🎯' },
 ]
 
 export default function App() {
@@ -37,8 +37,11 @@ export default function App() {
     if (confirm('Delete this transaction?')) deleteTransaction(id)
   }
 
+  const { fmt } = { fmt: (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n) }
+
   return (
     <div className="app">
+      {/* ── Desktop sidebar ── */}
       <aside className="sidebar">
         <div className="sidebar-brand">
           <h2>💳 BudgetApp</h2>
@@ -56,15 +59,24 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: 12, color: '#818cf8' }}>
-          <div style={{ marginBottom: 4 }}>All-time balance</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: totals.balance >= 0 ? '#a5f3d0' : '#fca5a5' }}>
-            {totals.balance >= 0 ? '' : ''}{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totals.balance)}
+        <div className="sidebar-balance">
+          <div className="sidebar-balance-label">All-time balance</div>
+          <div className={`sidebar-balance-amount ${totals.balance >= 0 ? 'positive' : 'negative'}`}>
+            {fmt(totals.balance)}
           </div>
         </div>
       </aside>
 
+      {/* ── Main content ── */}
       <main className="main">
+        {/* Mobile header */}
+        <div className="mobile-header">
+          <span className="mobile-header-title">
+            {NAV.find(n => n.id === page)?.icon} {NAV.find(n => n.id === page)?.label}
+          </span>
+          <button className="mobile-add-btn" onClick={openAdd}>+</button>
+        </div>
+
         {page === 'dashboard' && (
           <Dashboard
             transactions={transactions}
@@ -92,6 +104,20 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* ── Mobile bottom nav ── */}
+      <nav className="bottom-nav">
+        {NAV.map(n => (
+          <button
+            key={n.id}
+            className={`bottom-nav-btn ${page === n.id ? 'active' : ''}`}
+            onClick={() => setPage(n.id)}
+          >
+            <span className="bottom-nav-icon">{n.icon}</span>
+            <span className="bottom-nav-label">{n.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {showForm && (
         <TransactionForm
