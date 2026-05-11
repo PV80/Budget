@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import './App.css'
 import { useBudget } from './hooks/useBudget'
-import Dashboard from './components/Dashboard'
-import Transactions from './components/Transactions'
-import BudgetGoals from './components/BudgetGoals'
-import TransactionForm from './components/TransactionForm'
+import Home from './components/Home'
+import TxPage from './components/TxPage'
+import GoalsPage from './components/GoalsPage'
+import ProfilePage from './components/ProfilePage'
+import AddSheet from './components/AddSheet'
 
-const NAV = [
-  { id: 'dashboard',    label: 'Dashboard',    icon: '📊' },
-  { id: 'transactions', label: 'Transactions', icon: '📋' },
-  { id: 'goals',        label: 'Goals',        icon: '🎯' },
-]
+function loadName() {
+  try { return localStorage.getItem('budget_username') || 'Alex' } catch { return 'Alex' }
+}
 
 export default function App() {
-  const [page, setPage] = useState('dashboard')
-  const [showForm, setShowForm] = useState(false)
-  const [editTx, setEditTx] = useState(null)
+  const [tab, setTab]           = useState('home')
+  const [userName, setUserName] = useState(loadName)
+  const [sheet, setSheet]       = useState(null)   // null | { defaultType } | tx-object (edit)
 
   const {
     transactions, goals, totals,
@@ -23,79 +22,51 @@ export default function App() {
     addGoal, updateGoal, deleteGoal,
   } = useBudget()
 
-  function openAdd() { setEditTx(null); setShowForm(true) }
-  function openEdit(tx) { setEditTx(tx); setShowForm(true) }
-  function closeForm() { setShowForm(false); setEditTx(null) }
+  function openAdd(defaultType = 'expense') { setSheet({ defaultType }) }
+  function openEdit(tx) { setSheet(tx) }
+  function closeSheet() { setSheet(null) }
 
   function handleSave(data) {
-    if (editTx) updateTransaction(editTx.id, data)
+    if (sheet?.id) updateTransaction(sheet.id, data)
     else addTransaction(data)
-    closeForm()
+    closeSheet()
   }
 
   function handleDelete(id) {
     if (confirm('Delete this transaction?')) deleteTransaction(id)
   }
 
-  const { fmt } = { fmt: (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n) }
+  function handleNameChange(name) {
+    setUserName(name)
+    try { localStorage.setItem('budget_username', name) } catch {}
+  }
+
+  const isEdit    = sheet && sheet.id
+  const sheetOpen = sheet !== null
 
   return (
     <div className="app">
-      {/* ── Desktop sidebar ── */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <h2>💳 BudgetApp</h2>
-          <p>Personal Finance Tracker</p>
-        </div>
-        <nav className="sidebar-nav">
-          {NAV.map(n => (
-            <button
-              key={n.id}
-              className={`nav-btn ${page === n.id ? 'active' : ''}`}
-              onClick={() => setPage(n.id)}
-            >
-              <span className="icon">{n.icon}</span>
-              <span>{n.label}</span>
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-balance">
-          <div className="sidebar-balance-label">All-time balance</div>
-          <div className={`sidebar-balance-amount ${totals.balance >= 0 ? 'positive' : 'negative'}`}>
-            {fmt(totals.balance)}
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Main content ── */}
       <main className="main">
-        {/* Mobile header */}
-        <div className="mobile-header">
-          <span className="mobile-header-title">
-            {NAV.find(n => n.id === page)?.icon} {NAV.find(n => n.id === page)?.label}
-          </span>
-          <button className="mobile-add-btn" onClick={openAdd}>+</button>
-        </div>
-
-        {page === 'dashboard' && (
-          <Dashboard
+        {tab === 'home' && (
+          <Home
             transactions={transactions}
-            totals={totals}
+            goals={goals}
             onAdd={openAdd}
             onEdit={openEdit}
             onDelete={handleDelete}
+            userName={userName}
           />
         )}
-        {page === 'transactions' && (
-          <Transactions
+        {tab === 'transactions' && (
+          <TxPage
             transactions={transactions}
             onAdd={openAdd}
             onEdit={openEdit}
             onDelete={handleDelete}
           />
         )}
-        {page === 'goals' && (
-          <BudgetGoals
+        {tab === 'goals' && (
+          <GoalsPage
             goals={goals}
             transactions={transactions}
             onAdd={addGoal}
@@ -103,27 +74,47 @@ export default function App() {
             onDelete={deleteGoal}
           />
         )}
+        {tab === 'profile' && (
+          <ProfilePage
+            userName={userName}
+            onNameChange={handleNameChange}
+            totals={totals}
+          />
+        )}
       </main>
 
-      {/* ── Mobile bottom nav ── */}
+      {/* Bottom nav */}
       <nav className="bottom-nav">
-        {NAV.map(n => (
-          <button
-            key={n.id}
-            className={`bottom-nav-btn ${page === n.id ? 'active' : ''}`}
-            onClick={() => setPage(n.id)}
-          >
-            <span className="bottom-nav-icon">{n.icon}</span>
-            <span className="bottom-nav-label">{n.label}</span>
-          </button>
-        ))}
+        <button className={`nav-item ${tab==='home'?'active':''}`} onClick={()=>setTab('home')}>
+          <span className="nav-icon">🏠</span>
+          <span className="nav-label">Home</span>
+        </button>
+        <button className={`nav-item ${tab==='transactions'?'active':''}`} onClick={()=>setTab('transactions')}>
+          <span className="nav-icon">📋</span>
+          <span className="nav-label">Transactions</span>
+        </button>
+
+        {/* Center FAB */}
+        <button className="nav-fab" onClick={()=>openAdd('expense')}>
+          <span style={{ fontSize:28, lineHeight:1 }}>+</span>
+        </button>
+
+        <button className={`nav-item ${tab==='goals'?'active':''}`} onClick={()=>setTab('goals')}>
+          <span className="nav-icon">🎯</span>
+          <span className="nav-label">Goals</span>
+        </button>
+        <button className={`nav-item ${tab==='profile'?'active':''}`} onClick={()=>setTab('profile')}>
+          <span className="nav-icon">👤</span>
+          <span className="nav-label">Profile</span>
+        </button>
       </nav>
 
-      {showForm && (
-        <TransactionForm
+      {sheetOpen && (
+        <AddSheet
           onSave={handleSave}
-          onClose={closeForm}
-          initial={editTx}
+          onClose={closeSheet}
+          initial={isEdit ? sheet : null}
+          defaultType={!isEdit ? (sheet.defaultType || 'expense') : undefined}
         />
       )}
     </div>
